@@ -1,4 +1,5 @@
 require "bar_service/version"
+require 'bar_service/role_cache'
 require 'httparty'
 require 'redis'
 
