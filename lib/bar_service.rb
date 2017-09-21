@@ -3,6 +3,8 @@ require 'httparty'
 require 'redis'
 
 module BarService
+  extend self
+
   class Configuration
     attr_reader :roles, :whitelist
     attr_accessor :api_endpoint, :user_name, :user_password, :redis_url
@@ -77,58 +79,95 @@ module BarService
     end
   end
 
-  class << self
 
-    def configuration
-      @@configuration ||= Configuration.new
-    end
-
-    def configure
-      yield(configuration) if block_given?
-      configuration
-    end
-
-    def bar_roles(user)
-      whitelist_roles = configuration.available_whitelists.map do |role|
-        role if configuration.whitelist[role].include?(user)
-      end.compact
-
-      api_roles = if configuration.api_endpoint.present?
-        bar_role_auth(user, whitelist_roles)
-      end
-
-      (whitelist_roles + (api_roles ||= [])).sort
-    end
-
-    private
-
-    def bar_role_auth(user, current_roles)
-      if configuration.redis_url && RoleCache.has_key?(user)
-        RoleCache.bar_roles user
-      elsif configuration.redis_url
-        RoleCache.set_roles user, bar_authorize(user, current_roles)
-      else
-        bar_authorize(user, current_roles)
-      end
-    end
-
-    def bar_authorize(user, current_roles)
-      configuration.roles.map do |bar, role|
-        role if !current_roles.include?(role) && bar_api_check?(user, bar)
-      end.compact
-    end
-
-    def bar_api_check?(netid, bar_route)
-      HTTParty.get(bar_uri(netid, bar_route), basic_auth: auth_hsh).body == 'Y'
-    end
-
-    def auth_hsh
-      {username: configuration.user_name, password: configuration.user_password}
-    end
-
-    def bar_uri(netid, bar_route)
-      URI.parse(configuration.api_endpoint.gsub(':net_id', netid).gsub(':bar_role', bar_route))
-    end
-
+  def configuration
+    @@configuration ||= Configuration.new
   end
+
+  def configure
+    yield(configuration) if block_given?
+    configuration
+  end
+
+  def bar_roles(user)
+    whitelist_roles = configuration.available_whitelists.map do |role|
+      role if configuration.whitelist[role].include?(user)
+    end.compact
+
+    api_roles = if configuration.api_endpoint.present?
+      bar_role_auth(user, whitelist_roles)
+    end
+
+    (whitelist_roles + (api_roles ||= [])).sort
+  end
+
+  private
+
+  def bar_role_auth(user, current_roles)
+    if configuration.redis_url && RoleCache.has_key?(user)
+      RoleCache.bar_roles user
+    elsif configuration.redis_url
+      RoleCache.set_roles user, bar_authorize(user, current_roles)
+    else
+      bar_authorize(user, current_roles)
+    end
+  end
+
+  def bar_authorize(user, current_roles)
+    configuration.roles.map do |bar, role|
+      role if !current_roles.include?(role) && bar_api_check?(user, bar)
+    end.compact
+  end
+
+  def bar_api_check?(netid, bar_route)
+    HTTParty.get(bar_uri(netid, bar_route), basic_auth: auth_hsh).body == 'Y'
+  end
+
+  def auth_hsh
+    {username: configuration.user_name, password: configuration.user_password}
+  end
+
+  def bar_uri(netid, bar_route)
+    URI.parse(configuration.api_endpoint.gsub(':net_id', netid).gsub(':bar_role', bar_route))
+  end
+
+
+
+  # module RoleCache
+  #   extend self
+  #   def redis_endpoint
+  #     @@redis_endpoint ||= Redis.new(url: BarService.configuration.redis_url)
+  #   end
+  #
+  #   def bar_roles(user)
+  #     redis_endpoint.hkeys(user).reject{ |role| role == 'no_bar_roles' }
+  #   end
+  #
+  #   def remove_roles(user)
+  #     redis_endpoint.del user
+  #   end
+  #
+  #   def set_roles(user, roles=[])
+  #     remove_roles user
+  #     roles.each { |role| redis_endpoint.hset(user, role, true) }
+  #     redis_endpoint.hset(user, 'no_bar_roles', true) if roles.empty?
+  #     redis_endpoint.expire user, expiration
+  #     bar_roles user
+  #   end
+  #
+  #   def has_key?(user)
+  #     redis_endpoint.exists user
+  #   end
+  #
+  #   private
+  #
+  #   def expiration
+  #     (expiration_date - Time.now).to_i
+  #   end
+  #
+  #   def expiration_date
+  #     tt = Time.now.utc + 86400
+  #     Time.new(tt.year, tt.month, tt.day).utc + 10800
+  #   end
+  # end
 end
