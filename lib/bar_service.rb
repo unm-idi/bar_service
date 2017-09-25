@@ -38,9 +38,6 @@ module BarService
       @whitelist.map{ |k,v| k if v }.compact
     end
 
-    def reload
-      binding.pry
-    end
 
     private
 
@@ -105,9 +102,9 @@ module BarService
   private
 
   def bar_role_auth(user, current_roles)
-    if configuration.redis_url && RoleCache.has_key?(user)
+    if configuration.redis_url.present? && RoleCache.has_key?(user)
       RoleCache.bar_roles user
-    elsif configuration.redis_url
+    elsif configuration.redis_url.present?
       RoleCache.set_roles user, bar_authorize(user, current_roles)
     else
       bar_authorize(user, current_roles)
@@ -132,43 +129,4 @@ module BarService
     URI.parse(configuration.api_endpoint.gsub(':net_id', netid).gsub(':bar_role', bar_route))
   end
 
-
-
-  # module RoleCache
-  #   extend self
-  #   def redis_endpoint
-  #     @@redis_endpoint ||= Redis.new(url: BarService.configuration.redis_url)
-  #   end
-  #
-  #   def bar_roles(user)
-  #     redis_endpoint.hkeys(user).reject{ |role| role == 'no_bar_roles' }
-  #   end
-  #
-  #   def remove_roles(user)
-  #     redis_endpoint.del user
-  #   end
-  #
-  #   def set_roles(user, roles=[])
-  #     remove_roles user
-  #     roles.each { |role| redis_endpoint.hset(user, role, true) }
-  #     redis_endpoint.hset(user, 'no_bar_roles', true) if roles.empty?
-  #     redis_endpoint.expire user, expiration
-  #     bar_roles user
-  #   end
-  #
-  #   def has_key?(user)
-  #     redis_endpoint.exists user
-  #   end
-  #
-  #   private
-  #
-  #   def expiration
-  #     (expiration_date - Time.now).to_i
-  #   end
-  #
-  #   def expiration_date
-  #     tt = Time.now.utc + 86400
-  #     Time.new(tt.year, tt.month, tt.day).utc + 10800
-  #   end
-  # end
 end
