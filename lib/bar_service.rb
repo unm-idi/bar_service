@@ -8,11 +8,12 @@ module BarService
 
   class Configuration
     attr_reader :roles, :whitelist
-    attr_accessor :api_endpoint, :user_name, :user_password, :redis_url
+    attr_accessor :api_endpoint, :user_name, :user_password, :redis_url, :retries
 
     def initialize
       @whitelist = {}
       @roles = {}
+      @retries = 1
     end
 
     def roles=(role_hsh)
@@ -118,7 +119,28 @@ module BarService
   end
 
   def bar_api_check?(netid, bar_route)
-    HTTParty.get(bar_uri(netid, bar_route), basic_auth: auth_hsh).body == 'Y'
+    valid = false
+    error = nil
+    configuration.retries.times do |x|
+      begin
+        response = HTTParty.get(bar_uri(netid, bar_route), basic_auth: auth_hsh, timeout: 120)
+
+        if response.status == 200
+          valid = response.body == 'Y'
+          break
+        else
+          raise "BAR API CHECK: #{response.status}"
+        end
+      rescue Exception => e
+        error = e
+      end
+    end
+
+    if error
+      raise error
+    else
+      valid
+    end
   end
 
   def auth_hsh
