@@ -118,6 +118,7 @@ module BarService
   end
 
   def bar_api_check?(netid, bar_route)
+    puts "I made a request"
     HTTParty.get(bar_uri(netid, bar_route), basic_auth: auth_hsh).body == 'Y'
   end
 
