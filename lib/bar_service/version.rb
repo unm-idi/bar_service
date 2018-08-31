@@ -1,3 +1,3 @@
 module BarService
-  VERSION = "0.5.2"
+  VERSION = "0.5.5"
 end

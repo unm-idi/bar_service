@@ -8,7 +8,7 @@ module BarService
 
   class Configuration
     attr_reader :roles, :whitelist
-    attr_accessor :api_endpoint, :user_name, :user_password, :redis_url, :api_key
+    attr_accessor :api_endpoint, :user_name, :user_password, :redis_url, :api_key, :logger
 
     def initialize
       @whitelist = {}
@@ -118,10 +118,27 @@ module BarService
   end
 
   def bar_api_check?(netid, bar_route)
-    HTTParty.get(bar_uri(netid, bar_route), headers: {"Authorization" => configuration.api_key}).body == 'Y'
+    if configuration.logger.present?
+      configuration.logger.info "Requesting #{bar_route} for #{netid}"
+    end
+
+    res = false
+    
+    begin
+      res = HTTParty.get(bar_uri(netid, bar_route), headers: {"Authorization" => configuration.api_key})
+      if configuration.logger.present?
+        configuration.logger.info "Response for #{bar_route} for #{netid}: (#{res.code}) #{res.body.strip.empty? ? 'Empty Response' : res.body}"
+      end
+    rescue Exception => e
+      if configuration.logger.present?
+        configuration.logger.error "Response for #{bar_route} for #{netid}: #{e}"
+      end
+    end
+
+    res ? res.body == 'Y' : false
   end
 
-  def auth_hsh}
+  def auth_hsh
     {username: configuration.user_name, password: configuration.user_password}
   end
 

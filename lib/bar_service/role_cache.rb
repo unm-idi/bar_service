@@ -7,7 +7,7 @@ module BarService
     end
 
     def bar_roles(user)
-      redis_endpoint.hkeys(user).reject{ |role| role == 'no_bar_roles' }
+      redis_endpoint.hkeys(user).reject { |role| role == 'no_bar_roles' }
     end
 
     def remove_roles(user)
@@ -17,6 +17,7 @@ module BarService
     def set_roles(user, roles=[])
       remove_roles user
       roles.each { |role| redis_endpoint.hset(user, role, true) }
+      # binding.pry
       # redis_endpoint.hset(user, 'no_bar_roles', true) if roles.empty?
       redis_endpoint.expire user, expiration
       bar_roles user
