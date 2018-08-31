@@ -121,7 +121,7 @@ module BarService
     HTTParty.get(bar_uri(netid, bar_route), headers: {"Authorization" => configuration.api_key}).body == 'Y'
   end
 
-  def auth_hsh
+  def auth_hsh}
     {username: configuration.user_name, password: configuration.user_password}
   end
 
